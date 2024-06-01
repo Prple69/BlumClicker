@@ -9,7 +9,7 @@ Created by @prpleprog
 
 В общем скрипт полностью имитирует человека, который просто очень быстро кликает)
 
-1. Установить все зависимости pip install requirements.txt -r
+1. Установить все зависимости pip install -r requirements.txt
 2. Запустить код
 3. Переместить окно Blum так, чтобы его было видно в захваченной области
 ![image](https://github.com/Prple69/BlumClicker/assets/94802922/03b618d4-6ca0-41d0-bbdc-a1a30ac27961)
