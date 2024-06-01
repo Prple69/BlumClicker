@@ -6,20 +6,20 @@ import time
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import random
-#Диапазон смещения курсора от цента снежинки вниз
-RAND_MIN = 5 #Мин пикселей
-RAND_MAX = 10 #Макс пикселей
 
-#Кнопка активации\деактивации кликера
+# Диапазон смещения курсора от центра снежинки вниз
+RAND_MIN = 5  # Мин пикселей
+RAND_MAX = 10  # Макс пикселей
+
+# Кнопка активации/деактивации кликера
 ACTIVE_BTN = keyboard.Key.ctrl_r
+# Кнопка завершения программы
+EXIT_BTN = keyboard.Key.backspace
 
 # Параметры захвата экрана
 region = (900, 550, 370, 530)
 element_lower = np.array([45, 75, 75])
 element_upper = np.array([75, 255, 255])
-
-freeze_lower = np.array([80, 30, 100])  # Нижний порог для freeze
-freeze_upper = np.array([150, 255, 255])  # Верхний порог для freeze
 
 # Диапазоны для темно-зеленого цвета
 dark_green_lower = np.array([6, 22, 0])
@@ -30,14 +30,19 @@ min_contour_area = 150  # Установите это значение в зав
 max_contour_area = 1000
 
 clicking_enabled = False
+program_running = True
 executor = ThreadPoolExecutor(max_workers=10)  # Создаем пул потоков
 
 def on_press(key):
-    global clicking_enabled
+    global clicking_enabled, program_running
     try:
         if key == ACTIVE_BTN:
             clicking_enabled = not clicking_enabled
             print(f"Clicking enabled: {clicking_enabled}")
+        elif key == EXIT_BTN:
+            program_running = False
+            print("Exiting program...")
+            return False  # Останавливает слушатель клавиш
     except AttributeError:
         pass
 
@@ -45,15 +50,9 @@ def process_frame(frame):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
     # Создаем основную маску
-    mask = cv2.inRange(hsv, element_lower, element_upper)
+    mask = cv2.inRange(hsv, element_lower, element_upper)   
     
-    # Создаем дополнительную маску для freeze
-    freeze_mask = cv2.inRange(hsv, freeze_lower, freeze_upper)
-    
-    # Объединяем маски
-    combined_mask = cv2.bitwise_or(mask, freeze_mask)
-    
-    contours, hierarchy = cv2.findContours(combined_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     # Фильтруем контуры по площади и убираем вложенные контуры
     filtered_contours = []
@@ -80,10 +79,10 @@ def click_element_contours(contours):
         executor.submit(click_on_position, screen_x, screen_y)  # Асинхронный клик
 
 def capture_and_process():
-    while True:
+    global program_running
+    while program_running:
         # Захват экрана
         screenshot = pyautogui.screenshot(region=region)
-        # screenshot = cv2.imread('freeze.png')
         frame = np.array(screenshot)
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Преобразование в цветовое пространство BGR для OpenCV
 
@@ -103,6 +102,8 @@ def capture_and_process():
         time.sleep(0.05)
         if clicking_enabled:
             click_element_contours(contours)
+    cv2.destroyAllWindows()
+    print("Capture and processing thread terminated")
 
 listener = keyboard.Listener(on_press=on_press)
 listener.start()
@@ -111,6 +112,7 @@ capture_thread = threading.Thread(target=capture_and_process)
 capture_thread.start()
 
 try:
+    listener.join()
     capture_thread.join()
 except KeyboardInterrupt:
     cv2.destroyAllWindows()
